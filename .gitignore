@@ -1,0 +1,11 @@
+node_modules/
+.env
+.env.*
+!.env.example
+state.json
+*.db
+*.sqlite*
+auth.json
+.auth/
+secrets/
+dist/
