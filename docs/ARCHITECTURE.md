@@ -1,32 +1,43 @@
-# Architecture v0.1
+# Sofapotatoed Agent architecture v0.2
 
-## Accounts, ownership and isolation
+## Non-negotiable account ownership
 
-Lead agents own their provider binding (Codex or Claude CLI isolated account-home directory; OpenAI-compatible provider secret environment variable name). Child agents retain `parentId` and an independent `SOUL.md` while provider credentials resolve exclusively through their lead. A child cannot create further assistants in the first release. Cross-lead messages never carry credentials.
+**One bound account → exactly one supervisor.** Account registration owns the supervisor lifecycle; there is no separate "Create Supervisor" operation. Register 3 Codex + 2 Claude homes → 5 supervisors. Each supervisor may create multiple assistants or review agents, which use the **same account as their supervisor**, not a different model credential. An assistant cannot create nested assistants.
 
-## Agent execution
+```text
+AccountBinding (id, provider, label, fingerprint, accountHome OR credentialEnv, leadId)
+                     1:1 ↓
+Supervisor (id, accountId, SOUL.md, Skills[], MCP[])
+                     1:N ↓
+Assistant (id, parentId, accountId inherited, SOUL.md, Skills[], MCP[])
+```
 
-The first implementation includes demo provider, OpenAI-compatible Chat Completions, and opt-in local Codex/Claude CLI launchers. Codex is read-only; Claude is launched in plan mode. UI events are based on actual task lifecycle, not fabricated activity. Long-running tasks should be moved to a durable queue with concurrency and budget control.
+The server stores account binding fields in `accounts[]` and agents in `agents[]`, linked by `accountId`. `GET /api/state` returns a scrubbed projection: no account paths, env variable names, fingerprints or token values. On execution the server obtains the binding using the agent's verified parent chain; the assistant's submitted provider fields are rejected.
 
-## API design
+### Account binding API
 
-`GET /api/state` — agents, messages, tasks and events with secrets excluded.
-`POST /api/agents` — create lead or assistant, inheriting parent provider binding.
-`PUT /api/agents/:id/soul` — edit independent persona.
-`PUT /api/agents/:id/skills` — registry references.
-`PUT /api/agents/:id/mcp` — registry references.
-`POST /api/tasks` — dispatch work to a named agent.
-`POST /api/messages` — explicit communication between leads, or within a lead's team.
-`GET /api/events` — SSE event feed.
+- `POST /api/accounts`: validate provider-specific reference, reject duplicate fingerprints, atomically persist account binding + supervisor and emit event.
+- `POST /api/agents`: requires `parentId` of an existing supervisor; can create an assistant only; no provider or account overrides.
+- `GET /api/state`: public account summary + supervisor/assistant data.
+- `PUT /api/agents/:id/soul`: independent editable SOUL text.
+- `PUT /api/agents/:id/skills` and `/mcp`: reference arrays, not execution.
+- `POST /api/tasks`: execute using the supervisor account binding.
+- `POST /api/messages`: explicit supervisor ↔ supervisor, supervisor ↔ own assistants.
 
-## Hardening required before exposure
+### Binding identity vs verified login
 
-Add authentication/RBAC, OS credential store, per-agent tool authorization, path restrictions, tamper-resistant logs and HTTPS/TLS. The initial local server binds to 127.0.0.1 and must not be exposed to the LAN.
+Current fingerprints prevent registering the same CLI **home path** (or the same API secret-env / endpoint pair) twice; they do not establish external Codex/Claude provider account identity. The API deliberately returns `verified:false` and `status:registered`. A future **login broker** must verify provider identity and enforce account uniqueness at that level before showing `verified:true`. OAuth tokens must never be included in HTTP responses, logs or `SOUL.md`.
 
-## MCP and Skills
+Legacy v0.1 leads are migrated to account bindings with private paths retained; assistants keep their own SOUL text. Legacy duplicate connections are retained and flagged for identity review, not silently deleted.
 
-Registry references are not tool execution. Implement MCP stdio/Streamable HTTP connection management, explicit transport config, per-lead grants, per-tool write approvals, revocation and auditing. Implement Skills as versioned, sandboxed, scoped instructions and explicit code capabilities. Never silently execute arbitrary skill shell commands.
+## Communication and orchestration
 
-## Supervisor protocol
+Supervisor-to-supervisor communication is allowed through an explicit internal message, but **communication does not delegate account access**. Assistants can send messages only to their own supervisor. Future typed protocols will add validated sender identity and delegated tasks with explicit acceptance. Task operations should become durable with per-supervisor concurrency / budget limits and human approvals for tool writes.
 
-Leads may spawn bounded reviewer assistants only against the lead-owned credential. Reviewers receive task-specific prompts, independently return evidence, and their lead consolidates results. Inter-lead delegation uses typed messages with sender/receiver verification and requires permissions, never silent account sharing.
+## MCP, Skills and SOUL
+
+Each agent owns one independent `SOUL.md` profile and a list of granted MCP/Skill references. MVP stores references but does **not** yet execute MCP servers or Skills. The next executor needs tool manifests, explicit per-account grants, process isolation, owner-scoped filesystems, revocation and an auditable approval flow.
+
+## Security gates
+
+The current server is **local-only**, unauthenticated, and not a secure multi-tenant app. Do not expose outside `127.0.0.1`. Before remote/multi-user deployment add real user auth/RBAC, OS keychain vault, verified account identity, audited tool permissions, sandboxing, durable jobs, protocol versioning, and traffic encryption.

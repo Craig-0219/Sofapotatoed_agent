@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SOFAPOTATOED // AGENT OFFICE</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="brand"><span class="logo">▦</span><div>
+      <strong>SOFAPOTATOED<span class="accent">_AGENT</span></strong>
+      <small>PIXEL OFFICE // AGENT CONTROL ROOM</small>
+    </div></div>
+    <div class="online"><span class="light"></span> LOCAL OPERATIONS <span id="clock"></span></div>
+  </header>
+  <main>
+    <aside class="sidebar">
+      <div class="eyebrow">01 // ACCOUNT SUPERVISORS</div>
+      <button id="newLead" class="primary">＋ 綁定新帳號 / 建立主管</button>
+      <div class="sidebarNote">一個帳號只對應一位主管。主管可建立自己的助理團隊。</div>
+      <h3>AGENT DIRECTORY <span id="agentCount">00</span></h3>
+      <div id="agentList"></div>
+      <div class="sidebarFoot">▤ NO TOKENS STORED IN BROWSER<br>LOCAL MODE // PRIVATE BY DEFAULT</div>
+    </aside>
+    <section class="center">
+      <div class="sectionHead"><div>
+        <div class="eyebrow">LIVE OPERATIONS / PIXEL OFFICE</div>
+        <h1>THE OFFICE <span class="accent">↗</span></h1>
+      </div><div class="officeStats"><span id="leadCount">0 SUPERVISORS</span><span id="workerCount">0 ASSISTANTS</span></div></div>
+      <div class="officeShell">
+        <div class="wall"><div class="window">▤ <span>2040 · CLOUDY</span> ▤</div><div class="wallSign">WE BUILD TOGETHER.</div><div class="clockDeco">◷</div></div>
+        <div id="office" class="floor"></div>
+        <div class="officeLegend"><span>◆ SUPERVISOR</span><span>● ASSISTANT</span><span>◌ IDLE</span><span>■ SHARED SPACE</span></div>
+      </div>
+      <div class="bottomGrid">
+        <div class="panel"><div class="panelTitle">TASK DISPATCH <span>→</span></div>
+          <form id="taskForm">
+            <select id="taskAgent" required><option value="">SELECT AGENT</option></select>
+            <input id="taskTitle" placeholder="TASK TITLE" maxlength="100" required>
+            <textarea id="taskPrompt" placeholder="WHAT SHOULD THIS AGENT DO?" rows="3" required></textarea>
+            <button class="primary" type="submit">RUN TASK ↗</button>
+          </form>
+        </div>
+        <div class="panel"><div class="panelTitle">CURRENT TASKS <span id="taskCount">00</span></div><div id="taskList" class="scrollList"></div></div>
+      </div>
+    </section>
+    <aside class="rightbar">
+      <div class="eyebrow">02 // AGENT INTELLIGENCE</div>
+      <div id="detail"><div class="empty">SELECT AN AGENT<br>TO INSPECT PROFILE</div></div>
+      <div class="panelTitle">INTER-OFFICE MESSAGE <span>✉</span></div>
+      <form id="messageForm">
+        <select id="fromAgent" required></select><select id="toAgent" required></select>
+        <textarea id="messageText" placeholder="SUPERVISOR TO SUPERVISOR, OR TO OWN ASSISTANT" rows="3" required></textarea>
+        <button type="submit" class="secondary">SEND MESSAGE →</button>
+      </form>
+      <div class="panelTitle feedTitle">OFFICE ACTIVITY <span>LIVE</span></div><div id="feed" class="feed"></div>
+    </aside>
+  </main>
+  <footer><span>SOFAPOTATOED / AGENT OPERATING SYSTEM</span><span>V0.2.0 • ONE ACCOUNT = ONE SUPERVISOR</span></footer>
+</div>
+<dialog id="accountDialog">
+  <form id="accountForm" method="dialog">
+    <div class="panelTitle">綁定帳號 → 自動建立主管 <button id="closeAccountDialog" type="button" class="iconBtn">✕</button></div>
+    <label>帳號暱稱<input name="label" placeholder="例如：Codex 主力帳號" maxlength="70" required></label>
+    <label>主管名稱<input name="leadName" placeholder="例如：技術主管 A" maxlength="40"></label>
+    <label>帳號類型<select name="provider" id="accountProvider">
+      <option value="codex">Codex CLI</option><option value="claude">Claude CLI</option>
+      <option value="openai-compatible">OpenAI-compatible API / LLM</option>
+      <option value="demo">Demo（測試帳號，不連外）</option>
+    </select></label>
+    <label id="accountHomeGroup">專屬 CLI 帳號目錄<input name="accountHome" placeholder="完整絕對路徑，例如 C:\Users\...\codex-a"></label>
+    <label id="apiSecretGroup" hidden>伺服器環境變數名稱（不輸入金鑰）<input name="credentialEnv" placeholder="例如：CODEX_A_API_KEY"></label>
+    <label id="apiEndpointGroup" hidden>API Endpoint<input name="endpoint" placeholder="HTTPS /v1/chat/completions"></label>
+    <label>模型（選填）<input name="model" placeholder="例如：gpt-5 / claude-sonnet-4-5"></label>
+    <label>主管 SOUL.MD<textarea name="soul" rows="3" placeholder="# Personality, priorities, responsibilities..."></textarea></label>
+    <p class="hint">每新增一組不同帳號設定，就建立一位主管。CLI 必須先在對應目錄完成登入；這裡是登記綁定，尚不會自動執行 OAuth。</p>
+    <button type="submit" class="primary">＋ 綁定並建立主管</button><div id="accountError" class="error"></div>
+  </form>
+</dialog>
+<dialog id="agentDialog">
+  <form id="agentForm" method="dialog">
+    <div class="panelTitle">建立主管專屬助手 <button id="closeDialog" type="button" class="iconBtn">✕</button></div>
+    <div class="assistantOwner">OWNER: <span id="assistantOwnerName"></span></div>
+    <input name="parentId" id="assistantParentId" type="hidden" required>
+    <label>助手名稱<input name="name" required maxlength="40" placeholder="例如：程式審查員"></label>
+    <label>獨立 SOUL.MD<textarea name="soul" rows="5" placeholder="# Assistant responsibilities, review rules..."></textarea></label>
+    <p class="hint">助手自動使用所屬主管的帳號，不能選擇其他主管帳號，也不能獨自持有金鑰。</p>
+    <button type="submit" class="primary">＋ 建立助手</button><div id="formError" class="error"></div>
+  </form>
+</dialog>
+<script src="/app.js" type="module"></script>
+</body>
+</html>
